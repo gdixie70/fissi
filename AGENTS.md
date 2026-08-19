@@ -156,9 +156,13 @@ creati.
   italiana (nome "FISSI Premium", descrizione impostata), localizzazione del gruppo fatta
   ("FISSI Premium"). Stato: "In preparazione per l'invio" — non ancora sottomesso alla
   review Apple, non serve finché non si pubblica davvero.
-- **Prossimo passo**: su RevenueCat, importare/collegare questo prodotto (Product catalog →
-  Products) e creare un **entitlement** (es. `premium`) che lo includa, poi recuperare la
-  chiave SDK pubblica iOS (serve per la Fase 5, collegamento del codice).
+- **Prodotto collegato su RevenueCat**: importato manualmente in Product catalog → Products
+  (identifier `fissi_premium_annual`, sotto l'app "Fissi (App Store)"), con l'**entitlement
+  `premium`** creato e collegato (risulta "1 Entitlement" nella lista prodotti). Lato iOS su
+  RevenueCat è sostanzialmente pronto.
+- **Prossimo passo**: recuperare la chiave SDK pubblica iOS da RevenueCat → API keys — serve
+  per la Fase 5 (collegamento del codice, va messa in `src/lib/purchases.ts`). Non è un
+  segreto come la chiave `.p8`: è pensata per stare nel codice dell'app.
 - Manca ancora: collegare l'app Android su RevenueCat (bloccato, vedi sotto).
 - **⚠️ BLOCCO Android**: l'account **Google Play Console dell'utente è in attesa di
   approvazione** (Google ha segnalato che la verifica può richiedere alcuni giorni) — finché
