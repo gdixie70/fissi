@@ -127,43 +127,44 @@ prese: livello gratuito limitato a **3 pagamenti attivi** (`FREE_TIER_MAX_ACTIVE
 recap annuale. Conteggio del limite solo sui pagamenti `active: true`, non su tutti quelli mai
 creati.
 
-**Fasi 0-3 già implementate** (nessuna dipendenza esterna, tutto testabile subito):
-- `src/lib/purchases.ts`: stub degli acquisti in-app con le firme già definitive
-  (`initPurchases`, `getIsPremium`, `purchasePremium`, `restorePurchases`) — oggi sostenuto da un
-  flag `AsyncStorage` attivabile solo in `__DEV__` tramite un interruttore "Premium ON/OFF" in
-  fondo a Impostazioni. **Quando si collega l'SDK reale (RevenueCat, vedi Fase 5 del piano), va
-  riscritto solo l'interno di questo file**, non chi lo chiama.
-- Gating in `SubscriptionsContext.tsx`: `addSubscription`/`updateSubscription` controllano il
-  limite (anche sul percorso "riattiva un pagamento sospeso" via form, non solo su "+ nuovo").
-  Ritornano `{ error, limitReached? }` — `limitReached: true` va gestito reindirizzando al Paywall,
-  non mostrato come testo d'errore.
-- `src/screens/PaywallScreen.tsx` (rotta `Paywall`, modal) + `src/lib/backup.ts` (scrittura
-  automatica debounced in `Paths.document`, non `Paths.cache`, così rientra nei backup di sistema
-  del telefono — nessuna integrazione OAuth con iCloud/Drive, deliberatamente) +
-  `src/screens/RecapScreen.tsx` (rotta `Recap`, dati aggregati con nuove funzioni in
-  `src/utils/selectors.ts`: `paymentsInYear`, `totalsByCategory`, `monthlyTotals`,
-  `yearsWithData`; niente libreria di grafici, riusa il pattern di barre `Animated.Value` di
-  `CycleProgressBar.tsx`, vedi anche il nuovo `src/components/CategoryBar.tsx`).
+**Fasi 0-3 implementate** (nessuna dipendenza esterna, tutto testabile subito): gating a 3
+pagamenti attivi, Paywall, backup automatico leggero, recap annuale. Vedi dettagli più sotto,
+invariati.
 
-**Fase 4 in corso** (setup esterno, solo l'utente può farlo):
-- Progetto RevenueCat "Fissi" creato (piattaforma React Native), con l'app iOS collegata:
-  Bundle ID `com.gianluca.fissi`, chiave **In-App Purchase** di Apple caricata (Key ID
-  `JFTDD76N23` + Issuer ID + file `.p8`, generata da App Store Connect → Utenti e accessi →
-  Integrazioni).
-- **Prodotto abbonamento creato su App Store Connect**: `fissi_premium_annual`, gruppo
-  "Fissi" (ID gruppo `22320695`), durata 1 anno, disponibilità configurata su "Pagamento
-  anticipato di 1 anno" (non sulla variante a rate mensili), prezzo 4,99€, localizzazione
-  italiana (nome "FISSI Premium", descrizione impostata), localizzazione del gruppo fatta
-  ("FISSI Premium"). Stato: "In preparazione per l'invio" — non ancora sottomesso alla
-  review Apple, non serve finché non si pubblica davvero.
-- **Prodotto collegato su RevenueCat**: importato manualmente in Product catalog → Products
-  (identifier `fissi_premium_annual`, sotto l'app "Fissi (App Store)"), con l'**entitlement
-  `premium`** creato e collegato (risulta "1 Entitlement" nella lista prodotti). Lato iOS su
-  RevenueCat è sostanzialmente pronto.
-- **Prossimo passo**: recuperare la chiave SDK pubblica iOS da RevenueCat → API keys — serve
-  per la Fase 5 (collegamento del codice, va messa in `src/lib/purchases.ts`). Non è un
-  segreto come la chiave `.p8`: è pensata per stare nel codice dell'app.
-- Manca ancora: collegare l'app Android su RevenueCat (bloccato, vedi sotto).
+**Fase 4 (setup esterno) completata lato iOS**:
+- Progetto RevenueCat "Fissi" (piattaforma React Native). App iOS collegata: Bundle ID
+  `com.gianluca.fissi`, chiave **In-App Purchase** di Apple caricata (Key ID `JFTDD76N23` +
+  Issuer ID + file `.p8`).
+- Prodotto abbonamento su App Store Connect: `fissi_premium_annual`, gruppo "Fissi" (ID
+  gruppo `22320695`), 1 anno, disponibilità "Pagamento anticipato di 1 anno" (non la variante
+  a rate mensili), 4,99€, localizzazione italiana fatta (nome "FISSI Premium"). Stato: "In
+  preparazione per l'invio" — non ancora sottomesso a review, non serve finché non si
+  pubblica davvero.
+- Prodotto importato manualmente su RevenueCat (Product catalog → Products, identifier
+  `fissi_premium_annual`), **entitlement `premium`** creato e collegato.
+- Chiave SDK pubblica iOS recuperata: `appl_ORaGloFdzBzTDCQEDYwbCkclLVK` (non è un segreto,
+  è pensata per stare nel codice — vedi Fase 5 sotto).
+- **Manca ancora, bloccato**: lato Android (vedi blocco Play Console sotto).
+
+**Fase 5 in corso — SDK reale collegato lato iOS**:
+- Installato `react-native-purchases` (nessun config plugin Expo necessario, autolinking
+  standard).
+- `src/lib/purchases.ts` riscritto per usare l'SDK vero quando disponibile
+  (`Purchases.configure`/`getCustomerInfo`/`purchaseStoreProduct`/`restorePurchases`,
+  controllo entitlement `premium`), con **fallback automatico allo stub `__DEV__`** quando:
+  (a) non c'è una chiave configurata per quella piattaforma (Android, per ora — vedi
+  `REVENUECAT_API_KEYS` nel file), oppure (b) il modulo nativo non è disponibile (**Expo Go**,
+  dove `react-native-purchases` non gira essendo un modulo nativo — l'app continua comunque a
+  funzionare lì, ricadendo sullo stub). Così si può continuare a testare tutto il resto su
+  Expo Go senza rompere nulla.
+- **⚠️ Nota tecnica**: dopo `npm install` di un nuovo pacchetto nativo, se Metro dà errori di
+  risoluzione moduli tipo "Unable to resolve module ./xyz" per file che esistono davvero su
+  disco, è quasi sempre cache di Metro non aggiornata — bisogna far riavviare all'utente
+  `npx expo start -c` (non lo si è mai risolto restando sulla cache vecchia).
+- **Non ancora fatto**: un acquisto reale in sandbox richiede una build EAS con dev-client
+  (il modulo nativo non gira su Expo Go) — **non lanciarla senza permesso esplicito
+  dell'utente** (vedi Regole di lavoro fisse). Finché non c'è quella build, il flusso di
+  acquisto reale non è testabile end-to-end, solo il codice è pronto.
 - **⚠️ BLOCCO Android**: l'account **Google Play Console dell'utente è in attesa di
   approvazione** (Google ha segnalato che la verifica può richiedere alcuni giorni) — finché
   non è approvato, l'utente non può pubblicare né creare prodotti reali su Play Console.
