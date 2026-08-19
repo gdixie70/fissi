@@ -17,6 +17,19 @@ Leggilo prima di iniziare a lavorare: risparmia di dover ririspiegare il progett
    iniziativa, nemmeno per "testare velocemente" una modifica. Aspetta che sia l'utente a chiedere
    di buildare.
 
+## Prossimi passi (controllare per primi all'inizio della prossima sessione)
+
+1. **Apple ha finito di processare la build 3?** Sottomessa a TestFlight il 19/08/2026 sera
+   (`eas submit`, di solito 5-10 minuti ma può volerci di più). Se l'utente non l'ha già
+   confermato, chiedere se è comparsa in TestFlight sul telefono.
+2. **Test acquisto sandbox**: da fare — creare un tester sandbox su App Store Connect (Utenti
+   e accessi → Sandbox → Tester) se non già fatto, poi provare l'acquisto Premium dall'app
+   installata via TestFlight (build 3), usando quel tester sandbox come Apple ID quando
+   richiesto — non l'Apple ID reale dell'utente.
+3. **Account Google Play Console approvato?** Era in attesa di verifica (vedi sezione
+   Monetizzazione sotto) — chiedere se è arrivata l'approvazione prima di riprendere il lato
+   Android della Fase 4.
+
 ## Cos'è
 
 App Expo (React Native + TypeScript) per iOS/Android che tiene traccia dei **Pagamenti fissi**
