@@ -149,8 +149,17 @@ creati.
 - Progetto RevenueCat "Fissi" creato (piattaforma React Native), con l'app iOS collegata:
   Bundle ID `com.gianluca.fissi`, chiave **In-App Purchase** di Apple caricata (Key ID
   `JFTDD76N23` + Issuer ID + file `.p8`, generata da App Store Connect → Utenti e accessi →
-  Integrazioni). Manca ancora: creare il prodotto abbonamento vero su App Store Connect
-  (`fissi_premium_annual`, 4,99€/anno) e collegare l'app Android su RevenueCat.
+  Integrazioni).
+- **Prodotto abbonamento creato su App Store Connect**: `fissi_premium_annual`, gruppo
+  "Fissi" (ID gruppo `22320695`), durata 1 anno, disponibilità configurata su "Pagamento
+  anticipato di 1 anno" (non sulla variante a rate mensili), prezzo 4,99€, localizzazione
+  italiana (nome "FISSI Premium", descrizione impostata), localizzazione del gruppo fatta
+  ("FISSI Premium"). Stato: "In preparazione per l'invio" — non ancora sottomesso alla
+  review Apple, non serve finché non si pubblica davvero.
+- **Prossimo passo**: su RevenueCat, importare/collegare questo prodotto (Product catalog →
+  Products) e creare un **entitlement** (es. `premium`) che lo includa, poi recuperare la
+  chiave SDK pubblica iOS (serve per la Fase 5, collegamento del codice).
+- Manca ancora: collegare l'app Android su RevenueCat (bloccato, vedi sotto).
 - **⚠️ BLOCCO Android**: l'account **Google Play Console dell'utente è in attesa di
   approvazione** (Google ha segnalato che la verifica può richiedere alcuni giorni) — finché
   non è approvato, l'utente non può pubblicare né creare prodotti reali su Play Console.
