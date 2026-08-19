@@ -145,10 +145,24 @@ creati.
   `yearsWithData`; niente libreria di grafici, riusa il pattern di barre `Animated.Value` di
   `CycleProgressBar.tsx`, vedi anche il nuovo `src/components/CategoryBar.tsx`).
 
-**Fasi 4-6 non ancora iniziate**, richiedono setup esterno che solo l'utente può fare (account
-RevenueCat, prodotto abbonamento su App Store Connect e Google Play Console) — vedi il piano per i
-dettagli. **Fase 5 richiede una nuova build EAS di sviluppo** (RevenueCat è un modulo nativo, non
-gira su Expo Go): non lanciarla senza permesso esplicito (vedi Regole di lavoro fisse sopra).
+**Fase 4 in corso** (setup esterno, solo l'utente può farlo):
+- Progetto RevenueCat "Fissi" creato (piattaforma React Native), con l'app iOS collegata:
+  Bundle ID `com.gianluca.fissi`, chiave **In-App Purchase** di Apple caricata (Key ID
+  `JFTDD76N23` + Issuer ID + file `.p8`, generata da App Store Connect → Utenti e accessi →
+  Integrazioni). Manca ancora: creare il prodotto abbonamento vero su App Store Connect
+  (`fissi_premium_annual`, 4,99€/anno) e collegare l'app Android su RevenueCat.
+- **⚠️ BLOCCO Android**: l'account **Google Play Console dell'utente è in attesa di
+  approvazione** (Google ha segnalato che la verifica può richiedere alcuni giorni) — finché
+  non è approvato, l'utente non può pubblicare né creare prodotti reali su Play Console.
+  **Nel frattempo si può procedere solo sul lato iOS** (App Store Connect + configurazione
+  iOS su RevenueCat); il lato Android (prodotto abbonamento su Play Console, service account
+  Google, app Android su RevenueCat) resta in sospeso finché l'account non viene approvato —
+  non serve ripetere la domanda all'utente ogni sessione, controllare prima se è stato
+  sbloccato nel frattempo.
+
+**Fase 5-6 non ancora iniziate**, vedi il piano per i dettagli. **Fase 5 richiede una nuova
+build EAS di sviluppo** (RevenueCat è un modulo nativo, non gira su Expo Go): non lanciarla
+senza permesso esplicito (vedi Regole di lavoro fisse sopra).
 
 ## Repository git — attenzione
 
