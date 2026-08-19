@@ -20,6 +20,14 @@ import {
   setPayday as persistPayday,
   setReminderLeadDays as persistReminderLeadDays,
 } from '../lib/settings';
+import {
+  getIsPremium,
+  initPurchases,
+  purchasePremium as purchasePremiumIap,
+  restorePurchases as restorePurchasesIap,
+} from '../lib/purchases';
+import { wouldExceedFreeLimit } from '../lib/limits';
+import { getLastBackupDate, readAutoBackup, scheduleAutoBackup } from '../lib/backup';
 
 export type ImportMode = 'merge' | 'replace';
 
@@ -30,15 +38,25 @@ interface SubscriptionsContextValue {
   error: string | null;
   reminderLeadDays: number;
   payday: number;
+  isPremium: boolean;
+  lastBackupAt: string | null;
   refresh: () => Promise<void>;
-  addSubscription: (data: NewSubscription) => Promise<{ error: string | null }>;
-  updateSubscription: (id: string, data: Partial<NewSubscription>) => Promise<{ error: string | null }>;
+  addSubscription: (data: NewSubscription) => Promise<{ error: string | null; limitReached?: boolean }>;
+  updateSubscription: (
+    id: string,
+    data: Partial<NewSubscription>
+  ) => Promise<{ error: string | null; limitReached?: boolean }>;
   deleteSubscription: (id: string) => Promise<{ error: string | null }>;
+  deletePaymentLogEntry: (id: string) => Promise<{ error: string | null }>;
   markAsPaid: (subscription: Subscription) => Promise<{ error: string | null }>;
   updateReminderLeadDays: (days: number) => Promise<void>;
   updatePayday: (day: number) => Promise<void>;
   exportData: () => Promise<{ error: string | null }>;
   importData: (mode: ImportMode) => Promise<{ error: string | null; canceled?: boolean; imported?: number }>;
+  refreshPremiumStatus: () => Promise<void>;
+  purchasePremium: () => Promise<{ error: string | null }>;
+  restorePurchases: () => Promise<{ error: string | null }>;
+  restoreFromAutoBackup: () => Promise<{ error: string | null; imported?: number }>;
 }
 
 const SubscriptionsContext = createContext<SubscriptionsContextValue | undefined>(undefined);
@@ -50,6 +68,21 @@ export function SubscriptionsProvider({ children }: { children: React.ReactNode 
   const [error, setError] = useState<string | null>(null);
   const [reminderLeadDays, setReminderLeadDaysState] = useState(DEFAULT_REMINDER_LEAD_DAYS);
   const [payday, setPaydayState] = useState(DEFAULT_PAYDAY);
+  const [isPremium, setIsPremium] = useState(false);
+  const [lastBackupAt, setLastBackupAt] = useState<string | null>(null);
+
+  const refreshPremiumStatus = useCallback(async () => {
+    setIsPremium(await getIsPremium());
+  }, []);
+
+  /** Pianifica un backup automatico solo per gli utenti Premium: è uno dei vantaggi
+   * del piano a pagamento, non gira per chi è sul livello gratuito. */
+  const maybeScheduleBackup = useCallback(
+    (subs: Subscription[], log: PaymentLogEntry[]) => {
+      if (isPremium) scheduleAutoBackup(subs, log);
+    },
+    [isPremium]
+  );
 
   /** Fa avanzare automaticamente gli abbonamenti "automatici" la cui scadenza è passata,
    * registrando ogni occorrenza saltata nello storico pagamenti. */
@@ -128,6 +161,9 @@ export function SubscriptionsProvider({ children }: { children: React.ReactNode 
       const storedPayday = await getPayday();
       setPaydayState(storedPayday);
 
+      await refreshPremiumStatus();
+      setLastBackupAt(await getLastBackupDate());
+
       const granted = await ensureNotificationSetup();
       if (granted) {
         const leadDays = await getReminderLeadDays();
@@ -142,9 +178,10 @@ export function SubscriptionsProvider({ children }: { children: React.ReactNode 
     } finally {
       setLoading(false);
     }
-  }, [reconcileAutomaticPayments]);
+  }, [reconcileAutomaticPayments, refreshPremiumStatus]);
 
   useEffect(() => {
+    initPurchases();
     refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -165,21 +202,33 @@ export function SubscriptionsProvider({ children }: { children: React.ReactNode 
 
   const addSubscription = useCallback(
     async (data: NewSubscription) => {
+      const activeCount = subscriptions.filter((s) => s.active).length;
+      if (wouldExceedFreeLimit(activeCount, isPremium, data.active)) {
+        return { error: null, limitReached: true };
+      }
+
       const now = new Date().toISOString();
       const newSub: Subscription = { ...data, id: generateId(), created_at: now, updated_at: now };
       const updated = [...subscriptions, newSub];
       await saveSubscriptions(updated);
       setSubscriptions(updated);
       await scheduleSubscriptionReminders(newSub, reminderLeadDays);
+      maybeScheduleBackup(updated, paymentLog);
       return { error: null };
     },
-    [subscriptions, reminderLeadDays]
+    [subscriptions, paymentLog, reminderLeadDays, isPremium, maybeScheduleBackup]
   );
 
   const updateSubscription = useCallback(
     async (id: string, data: Partial<NewSubscription>) => {
       const idx = subscriptions.findIndex((s) => s.id === id);
       if (idx === -1) return { error: 'Pagamento non trovato.' };
+
+      const isActivating = data.active === true && subscriptions[idx].active === false;
+      const activeCount = subscriptions.filter((s) => s.active).length;
+      if (wouldExceedFreeLimit(activeCount, isPremium, isActivating)) {
+        return { error: null, limitReached: true };
+      }
 
       const updatedSub: Subscription = {
         ...subscriptions[idx],
@@ -192,9 +241,10 @@ export function SubscriptionsProvider({ children }: { children: React.ReactNode 
       await saveSubscriptions(updated);
       setSubscriptions(updated);
       await scheduleSubscriptionReminders(updatedSub, reminderLeadDays);
+      maybeScheduleBackup(updated, paymentLog);
       return { error: null };
     },
-    [subscriptions, reminderLeadDays]
+    [subscriptions, paymentLog, reminderLeadDays, isPremium, maybeScheduleBackup]
   );
 
   const deleteSubscription = useCallback(
@@ -203,9 +253,23 @@ export function SubscriptionsProvider({ children }: { children: React.ReactNode 
       const updated = subscriptions.filter((s) => s.id !== id);
       await saveSubscriptions(updated);
       setSubscriptions(updated);
+      maybeScheduleBackup(updated, paymentLog);
       return { error: null };
     },
-    [subscriptions]
+    [subscriptions, paymentLog, maybeScheduleBackup]
+  );
+
+  /** Rimuove una singola voce dallo storico pagamenti (non tocca il pagamento fisso a cui
+   * si riferiva, se ancora esiste). Utile per ripulire voci non più rilevanti. */
+  const deletePaymentLogEntry = useCallback(
+    async (id: string) => {
+      const updated = paymentLog.filter((p) => p.id !== id);
+      await savePaymentLog(updated);
+      setPaymentLog(updated);
+      maybeScheduleBackup(subscriptions, updated);
+      return { error: null };
+    },
+    [subscriptions, paymentLog, maybeScheduleBackup]
   );
 
   const markAsPaid = useCallback(
@@ -237,9 +301,10 @@ export function SubscriptionsProvider({ children }: { children: React.ReactNode 
       setPaymentLog(updatedLog);
       setSubscriptions(updatedSubs);
       await scheduleSubscriptionReminders(updatedSub, reminderLeadDays);
+      maybeScheduleBackup(updatedSubs, updatedLog);
       return { error: null };
     },
-    [subscriptions, paymentLog, reminderLeadDays]
+    [subscriptions, paymentLog, reminderLeadDays, maybeScheduleBackup]
   );
 
   const updateReminderLeadDays = useCallback(
@@ -259,6 +324,18 @@ export function SubscriptionsProvider({ children }: { children: React.ReactNode 
     await persistPayday(day);
   }, []);
 
+  const purchasePremium = useCallback(async () => {
+    const result = await purchasePremiumIap();
+    await refreshPremiumStatus();
+    return result;
+  }, [refreshPremiumStatus]);
+
+  const restorePurchases = useCallback(async () => {
+    const result = await restorePurchasesIap();
+    await refreshPremiumStatus();
+    return result;
+  }, [refreshPremiumStatus]);
+
   const exportData = useCallback(async () => {
     try {
       await exportBackup(subscriptions, paymentLog);
@@ -268,47 +345,68 @@ export function SubscriptionsProvider({ children }: { children: React.ReactNode 
     }
   }, [subscriptions, paymentLog]);
 
+  /** Applica un backup (già letto/parsato) allo stato corrente, in merge o sostituzione.
+   * Condivisa tra l'import manuale da file e il ripristino dal backup automatico. */
+  const applyBackup = useCallback(
+    async (backup: FissiBackup, mode: ImportMode) => {
+      let mergedSubs: Subscription[];
+      let mergedLog: PaymentLogEntry[];
+
+      if (mode === 'replace') {
+        mergedSubs = backup.subscriptions;
+        mergedLog = backup.paymentLog;
+      } else {
+        const subsById = new Map(subscriptions.map((s) => [s.id, s]));
+        backup.subscriptions.forEach((s) => subsById.set(s.id, s));
+        mergedSubs = Array.from(subsById.values());
+
+        const logById = new Map(paymentLog.map((p) => [p.id, p]));
+        backup.paymentLog.forEach((p) => logById.set(p.id, p));
+        mergedLog = Array.from(logById.values());
+      }
+
+      await saveSubscriptions(mergedSubs);
+      await savePaymentLog(mergedLog);
+      setSubscriptions(mergedSubs);
+      setPaymentLog(mergedLog);
+
+      const leadDays = await getReminderLeadDays();
+      await rescheduleAllReminders(
+        mergedSubs.filter((s) => s.active),
+        leadDays
+      );
+
+      return backup.subscriptions.length;
+    },
+    [subscriptions, paymentLog]
+  );
+
   const importData = useCallback(
     async (mode: ImportMode) => {
       try {
         const picked = await pickBackupFile();
         if (picked.canceled) return { error: null, canceled: true };
 
-        const backup: FissiBackup = picked.backup;
-        let mergedSubs: Subscription[];
-        let mergedLog: PaymentLogEntry[];
-
-        if (mode === 'replace') {
-          mergedSubs = backup.subscriptions;
-          mergedLog = backup.paymentLog;
-        } else {
-          const subsById = new Map(subscriptions.map((s) => [s.id, s]));
-          backup.subscriptions.forEach((s) => subsById.set(s.id, s));
-          mergedSubs = Array.from(subsById.values());
-
-          const logById = new Map(paymentLog.map((p) => [p.id, p]));
-          backup.paymentLog.forEach((p) => logById.set(p.id, p));
-          mergedLog = Array.from(logById.values());
-        }
-
-        await saveSubscriptions(mergedSubs);
-        await savePaymentLog(mergedLog);
-        setSubscriptions(mergedSubs);
-        setPaymentLog(mergedLog);
-
-        const leadDays = await getReminderLeadDays();
-        await rescheduleAllReminders(
-          mergedSubs.filter((s) => s.active),
-          leadDays
-        );
-
-        return { error: null, imported: backup.subscriptions.length };
+        const imported = await applyBackup(picked.backup, mode);
+        return { error: null, imported };
       } catch (e) {
         return { error: e instanceof Error ? e.message : 'Importazione non riuscita.' };
       }
     },
-    [subscriptions, paymentLog]
+    [applyBackup]
   );
+
+  const restoreFromAutoBackup = useCallback(async () => {
+    try {
+      const backup = await readAutoBackup();
+      if (!backup) return { error: 'Nessun backup automatico trovato su questo dispositivo.' };
+
+      const imported = await applyBackup(backup, 'replace');
+      return { error: null, imported };
+    } catch (e) {
+      return { error: e instanceof Error ? e.message : 'Ripristino non riuscito.' };
+    }
+  }, [applyBackup]);
 
   const value = useMemo<SubscriptionsContextValue>(
     () => ({
@@ -318,15 +416,22 @@ export function SubscriptionsProvider({ children }: { children: React.ReactNode 
       error,
       reminderLeadDays,
       payday,
+      isPremium,
+      lastBackupAt,
       refresh,
       addSubscription,
       updateSubscription,
       deleteSubscription,
+      deletePaymentLogEntry,
       markAsPaid,
       updateReminderLeadDays,
       updatePayday,
       exportData,
       importData,
+      refreshPremiumStatus,
+      purchasePremium,
+      restorePurchases,
+      restoreFromAutoBackup,
     }),
     [
       subscriptions,
@@ -335,15 +440,22 @@ export function SubscriptionsProvider({ children }: { children: React.ReactNode 
       error,
       reminderLeadDays,
       payday,
+      isPremium,
+      lastBackupAt,
       refresh,
       addSubscription,
       updateSubscription,
       deleteSubscription,
+      deletePaymentLogEntry,
       markAsPaid,
       updateReminderLeadDays,
       updatePayday,
       exportData,
       importData,
+      refreshPremiumStatus,
+      purchasePremium,
+      restorePurchases,
+      restoreFromAutoBackup,
     ]
   );
 

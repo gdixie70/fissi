@@ -10,6 +10,8 @@ import { SubscriptionsListScreen } from '../screens/SubscriptionsListScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
 import { SubscriptionFormScreen } from '../screens/SubscriptionFormScreen';
 import { SubscriptionDetailScreen } from '../screens/SubscriptionDetailScreen';
+import { PaywallScreen } from '../screens/PaywallScreen';
+import { RecapScreen } from '../screens/RecapScreen';
 import { RootStackParamList, TabParamList } from './types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -65,6 +67,12 @@ export function RootNavigator() {
             options={{ presentation: 'modal', title: 'Pagamento' }}
           />
           <Stack.Screen name="SubscriptionDetail" component={SubscriptionDetailScreen} options={{ title: '' }} />
+          <Stack.Screen
+            name="Paywall"
+            component={PaywallScreen}
+            options={{ presentation: 'modal', title: 'Premium' }}
+          />
+          <Stack.Screen name="Recap" component={RecapScreen} options={{ title: 'Recap annuale' }} />
         </Stack.Navigator>
       </NavigationContainer>
     </SubscriptionsProvider>

@@ -1,8 +1,9 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, StyleSheet, View } from 'react-native';
-import { Text, useTheme } from 'react-native-paper';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Text } from 'react-native-paper';
 import { formatCurrency } from '../utils/selectors';
-import { SUCCESS_COLOR } from '../theme';
+import { HERO_GRADIENT, SUCCESS_COLOR } from '../theme';
 
 interface CycleProgressBarProps {
   /** Quanto resta ancora da pagare in questo ciclo. */
@@ -14,7 +15,6 @@ interface CycleProgressBarProps {
 }
 
 export function CycleProgressBar({ remainingTotal, paidTotal, rangeLabel }: CycleProgressBarProps) {
-  const theme = useTheme();
   const committedTotal = remainingTotal + paidTotal;
   const remainingRatio = committedTotal > 0 ? remainingTotal / committedTotal : 0;
 
@@ -33,34 +33,34 @@ export function CycleProgressBar({ remainingTotal, paidTotal, rangeLabel }: Cycl
   });
 
   return (
-    <View style={[styles.card, { backgroundColor: theme.colors.elevation.level1 }]}>
-      <Text variant="labelLarge" style={[styles.rangeLabel, { color: theme.colors.onSurfaceVariant }]}>
+    <LinearGradient colors={HERO_GRADIENT} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.card}>
+      <Text variant="labelLarge" style={styles.rangeLabel}>
         {rangeLabel}
       </Text>
 
       {committedTotal === 0 ? (
         <Text variant="titleMedium" style={styles.emptyState}>
-          Nessun pagamento fisso in questo ciclo. 🎉
+          Tutto tranquillo — nessun pagamento fisso in questo ciclo.
         </Text>
       ) : (
         <>
           <Text variant="displaySmall" style={styles.bigNumber}>
             {formatCurrency(remainingTotal)}
           </Text>
-          <Text variant="bodyMedium" style={[styles.subLabel, { color: theme.colors.onSurfaceVariant }]}>
+          <Text variant="bodyMedium" style={styles.subLabel}>
             ancora da pagare su {formatCurrency(committedTotal)} totali
           </Text>
 
-          <View style={[styles.track, { backgroundColor: theme.colors.surfaceVariant }]}>
+          <View style={styles.track}>
             <Animated.View style={[styles.fill, { width: animatedWidth, backgroundColor: SUCCESS_COLOR }]} />
           </View>
 
-          <Text variant="bodySmall" style={[styles.paidLabel, { color: theme.colors.onSurfaceVariant }]}>
+          <Text variant="bodySmall" style={styles.paidLabel}>
             {formatCurrency(paidTotal)} già pagati
           </Text>
         </>
       )}
-    </View>
+    </LinearGradient>
   );
 }
 
@@ -72,16 +72,20 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   rangeLabel: {
+    color: 'rgba(255,255,255,0.85)',
     marginBottom: 8,
   },
   emptyState: {
+    color: '#FFFFFF',
     marginTop: 4,
     marginBottom: 4,
   },
   bigNumber: {
+    color: '#FFFFFF',
     fontWeight: '800',
   },
   subLabel: {
+    color: 'rgba(255,255,255,0.85)',
     marginTop: 2,
     marginBottom: 14,
   },
@@ -89,12 +93,14 @@ const styles = StyleSheet.create({
     height: 14,
     borderRadius: 7,
     overflow: 'hidden',
+    backgroundColor: 'rgba(255,255,255,0.25)',
   },
   fill: {
     height: '100%',
     borderRadius: 7,
   },
   paidLabel: {
+    color: 'rgba(255,255,255,0.85)',
     marginTop: 8,
   },
 });

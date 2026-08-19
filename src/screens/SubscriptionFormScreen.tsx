@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { Button, Chip, SegmentedButtons, Text, TextInput, TouchableRipple, useTheme } from 'react-native-paper';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import dayjs from 'dayjs';
@@ -82,6 +82,10 @@ export function SubscriptionFormScreen() {
 
     setSaving(false);
 
+    if (result.limitReached) {
+      navigation.replace('Paywall');
+      return;
+    }
     if (result.error) {
       setError(result.error);
       return;
@@ -89,16 +93,29 @@ export function SubscriptionFormScreen() {
     navigation.goBack();
   };
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
     if (!subscriptionId) return;
-    setSaving(true);
-    const result = await deleteSubscription(subscriptionId);
-    setSaving(false);
-    if (result.error) {
-      setError(result.error);
-      return;
-    }
-    navigation.goBack();
+    Alert.alert(
+      'Eliminare questo pagamento?',
+      `"${name || 'Questo pagamento'}" verrà eliminato definitivamente, insieme al suo storico dei pagamenti. L'azione non può essere annullata.`,
+      [
+        { text: 'Annulla', style: 'cancel' },
+        {
+          text: 'Elimina',
+          style: 'destructive',
+          onPress: async () => {
+            setSaving(true);
+            const result = await deleteSubscription(subscriptionId);
+            setSaving(false);
+            if (result.error) {
+              setError(result.error);
+              return;
+            }
+            navigation.goBack();
+          },
+        },
+      ]
+    );
   };
 
   return (

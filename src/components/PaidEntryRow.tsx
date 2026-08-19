@@ -1,5 +1,6 @@
-import React from 'react';
-import { StyleSheet, View } from 'react-native';
+import React, { useRef } from 'react';
+import { Alert, StyleSheet, View } from 'react-native';
+import { Swipeable } from 'react-native-gesture-handler';
 import { Chip, Text, TouchableRipple, useTheme } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { PaymentLogEntry, Subscription } from '../types';
@@ -12,13 +13,41 @@ interface PaidEntryRowProps {
   entry: PaymentLogEntry;
   subscription?: Subscription;
   onPress?: () => void;
+  onDelete?: () => void;
 }
 
-export function PaidEntryRow({ entry, subscription, onPress }: PaidEntryRowProps) {
+export function PaidEntryRow({ entry, subscription, onPress, onDelete }: PaidEntryRowProps) {
   const theme = useTheme();
+  const swipeableRef = useRef<Swipeable>(null);
   const accentColor = subscription?.color ?? theme.colors.primary;
+  const entryName = subscription?.name ?? 'Pagamento eliminato';
 
-  return (
+  const handleDeletePress = () => {
+    swipeableRef.current?.close();
+    Alert.alert(
+      'Rimuovere questa voce dallo storico?',
+      `Il pagamento di ${formatCurrency(entry.amount, entry.currency)} per "${entryName}" del ${formatShortDate(entry.due_date)} verrà rimosso definitivamente dallo storico. L'azione non può essere annullata.`,
+      [
+        { text: 'Annulla', style: 'cancel' },
+        { text: 'Rimuovi', style: 'destructive', onPress: () => onDelete?.() },
+      ]
+    );
+  };
+
+  const renderRightActions = () => (
+    <View style={styles.actionsRow}>
+      <TouchableRipple onPress={handleDeletePress} style={[styles.actionButton, { backgroundColor: theme.colors.error }]}>
+        <View style={styles.actionContent}>
+          <MaterialCommunityIcons name="trash-can-outline" size={18} color={theme.colors.onError} />
+          <Text variant="labelSmall" style={{ color: theme.colors.onError }}>
+            Rimuovi
+          </Text>
+        </View>
+      </TouchableRipple>
+    </View>
+  );
+
+  const row = (
     <TouchableRipple onPress={onPress} disabled={!onPress} borderless style={styles.wrapper}>
       <View style={[styles.card, { backgroundColor: theme.colors.elevation.level1 }]}>
         <View style={[styles.iconBadge, { backgroundColor: accentColor, borderColor: theme.colors.outlineVariant }]}>
@@ -31,7 +60,7 @@ export function PaidEntryRow({ entry, subscription, onPress }: PaidEntryRowProps
         <View style={styles.content}>
           <View style={styles.headerRow}>
             <Text variant="titleMedium" numberOfLines={1} style={styles.name}>
-              {subscription?.name ?? 'Pagamento eliminato'}
+              {entryName}
             </Text>
             <Text variant="titleMedium" style={styles.amount}>
               {formatCurrency(entry.amount, entry.currency)}
@@ -49,6 +78,14 @@ export function PaidEntryRow({ entry, subscription, onPress }: PaidEntryRowProps
         </View>
       </View>
     </TouchableRipple>
+  );
+
+  if (!onDelete) return row;
+
+  return (
+    <Swipeable ref={swipeableRef} renderRightActions={renderRightActions} overshootRight={false}>
+      {row}
+    </Swipeable>
   );
 }
 
@@ -104,5 +141,20 @@ const styles = StyleSheet.create({
   },
   dateLabel: {
     opacity: 0.9,
+  },
+  actionsRow: {
+    flexDirection: 'row',
+    marginBottom: 10,
+  },
+  actionButton: {
+    width: 72,
+    marginLeft: 6,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  actionContent: {
+    alignItems: 'center',
+    gap: 4,
   },
 });

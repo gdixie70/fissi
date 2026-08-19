@@ -1,5 +1,6 @@
 import React from 'react';
 import { useColorScheme } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StatusBar } from 'expo-status-bar';
 import { PaperProvider } from 'react-native-paper';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -11,11 +12,13 @@ export default function App() {
   const theme = scheme === 'dark' ? darkTheme : lightTheme;
 
   return (
-    <SafeAreaProvider>
-      <PaperProvider theme={theme}>
-        <RootNavigator />
-        <StatusBar style="auto" />
-      </PaperProvider>
-    </SafeAreaProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <PaperProvider theme={theme}>
+          <RootNavigator />
+          <StatusBar style="auto" />
+        </PaperProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }

@@ -8,13 +8,23 @@ import { useSubscriptions } from '../context/SubscriptionsContext';
 import { RootStackParamList } from '../navigation/types';
 import { SubscriptionCard } from '../components/SubscriptionCard';
 import { EmptyState } from '../components/EmptyState';
+import { FREE_TIER_MAX_ACTIVE } from '../lib/limits';
 
 export function SubscriptionsListScreen() {
   const theme = useTheme();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { subscriptions, loading, refresh, markAsPaid } = useSubscriptions();
+  const { subscriptions, isPremium, loading, refresh, markAsPaid, deleteSubscription } = useSubscriptions();
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState<'active' | 'all'>('active');
+
+  const handleAddPress = () => {
+    const activeCount = subscriptions.filter((s) => s.active).length;
+    if (!isPremium && activeCount >= FREE_TIER_MAX_ACTIVE) {
+      navigation.navigate('Paywall');
+      return;
+    }
+    navigation.navigate('SubscriptionForm', undefined);
+  };
 
   const filtered = useMemo(() => {
     const list = filter === 'active' ? subscriptions.filter((s) => s.active) : subscriptions;
@@ -66,6 +76,8 @@ export function SubscriptionsListScreen() {
               subscription={item}
               onPress={() => navigation.navigate('SubscriptionDetail', { subscriptionId: item.id })}
               onMarkAsPaid={item.payment_type === 'manual' && item.active ? () => markAsPaid(item) : undefined}
+              onEdit={() => navigation.navigate('SubscriptionForm', { subscriptionId: item.id })}
+              onDelete={() => deleteSubscription(item.id)}
             />
           )}
         />
@@ -75,7 +87,7 @@ export function SubscriptionsListScreen() {
         icon="plus"
         style={[styles.fab, { backgroundColor: theme.colors.primary }]}
         color="#fff"
-        onPress={() => navigation.navigate('SubscriptionForm', undefined)}
+        onPress={handleAddPress}
       />
     </SafeAreaView>
   );

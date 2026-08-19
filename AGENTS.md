@@ -3,6 +3,20 @@
 Questo file viene caricato automaticamente in ogni sessione (`CLAUDE.md` lo include con `@AGENTS.md`).
 Leggilo prima di iniziare a lavorare: risparmia di dover ririspiegare il progetto da capo.
 
+## Regole di lavoro fisse (richieste esplicitamente dall'utente)
+
+1. **Tieni questo file aggiornato ad ogni sessione di lavoro rilevante.** Dopo aver implementato
+   qualcosa di significativo, aggiungi/aggiorna qui la sezione pertinente — è così che una
+   conversazione futura (anche su una macchina diversa) recupera tutto il contesto senza doverselo
+   far rispiegare da zero.
+2. **Fai sempre commit e push su GitHub** dopo aver completato un pezzo di lavoro (repo:
+   `https://github.com/gdixie70/fissi.git`, branch `master`). Non lasciare lavoro fatto solo
+   committato in locale o peggio non committato.
+3. **Non lanciare mai una build EAS (`eas build`) senza permesso esplicito dell'utente in quella
+   specifica conversazione.** Le build sono a pagamento/a quota limitata: non vanno consumate di
+   iniziativa, nemmeno per "testare velocemente" una modifica. Aspetta che sia l'utente a chiedere
+   di buildare.
+
 ## Cos'è
 
 App Expo (React Native + TypeScript) per iOS/Android che tiene traccia dei **Pagamenti fissi**
@@ -104,6 +118,37 @@ MaterialCommunityIcons. Evitare colori hex hardcoded nei componenti: usare i tok
 - **La quota build gratuita mensile di EAS non è verificabile da CLI**, solo dalla dashboard web
   (expo.dev → account → billing/usage). Se una build fallisce per quota esaurita, aspettare il
   reset mensile o chiedere conferma prima di procedere.
+
+## Monetizzazione: livello Premium (in corso)
+
+Piano completo in `C:\Users\gdixi\.claude\plans\composed-juggling-hennessy.md` (fasi 0-6). Decisioni
+prese: livello gratuito limitato a **3 pagamenti attivi** (`FREE_TIER_MAX_ACTIVE` in
+`src/lib/limits.ts`), Premium **4,99€/anno** che sblocca pagamenti illimitati + backup automatico +
+recap annuale. Conteggio del limite solo sui pagamenti `active: true`, non su tutti quelli mai
+creati.
+
+**Fasi 0-3 già implementate** (nessuna dipendenza esterna, tutto testabile subito):
+- `src/lib/purchases.ts`: stub degli acquisti in-app con le firme già definitive
+  (`initPurchases`, `getIsPremium`, `purchasePremium`, `restorePurchases`) — oggi sostenuto da un
+  flag `AsyncStorage` attivabile solo in `__DEV__` tramite un interruttore "Premium ON/OFF" in
+  fondo a Impostazioni. **Quando si collega l'SDK reale (RevenueCat, vedi Fase 5 del piano), va
+  riscritto solo l'interno di questo file**, non chi lo chiama.
+- Gating in `SubscriptionsContext.tsx`: `addSubscription`/`updateSubscription` controllano il
+  limite (anche sul percorso "riattiva un pagamento sospeso" via form, non solo su "+ nuovo").
+  Ritornano `{ error, limitReached? }` — `limitReached: true` va gestito reindirizzando al Paywall,
+  non mostrato come testo d'errore.
+- `src/screens/PaywallScreen.tsx` (rotta `Paywall`, modal) + `src/lib/backup.ts` (scrittura
+  automatica debounced in `Paths.document`, non `Paths.cache`, così rientra nei backup di sistema
+  del telefono — nessuna integrazione OAuth con iCloud/Drive, deliberatamente) +
+  `src/screens/RecapScreen.tsx` (rotta `Recap`, dati aggregati con nuove funzioni in
+  `src/utils/selectors.ts`: `paymentsInYear`, `totalsByCategory`, `monthlyTotals`,
+  `yearsWithData`; niente libreria di grafici, riusa il pattern di barre `Animated.Value` di
+  `CycleProgressBar.tsx`, vedi anche il nuovo `src/components/CategoryBar.tsx`).
+
+**Fasi 4-6 non ancora iniziate**, richiedono setup esterno che solo l'utente può fare (account
+RevenueCat, prodotto abbonamento su App Store Connect e Google Play Console) — vedi il piano per i
+dettagli. **Fase 5 richiede una nuova build EAS di sviluppo** (RevenueCat è un modulo nativo, non
+gira su Expo Go): non lanciarla senza permesso esplicito (vedi Regole di lavoro fisse sopra).
 
 ## Repository git — attenzione
 

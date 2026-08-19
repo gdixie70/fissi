@@ -1,5 +1,6 @@
-import React from 'react';
-import { StyleSheet, View } from 'react-native';
+import React, { useRef } from 'react';
+import { Alert, StyleSheet, View } from 'react-native';
+import { Swipeable } from 'react-native-gesture-handler';
 import { Chip, Text, TouchableRipple, useTheme } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Subscription } from '../types';
@@ -12,10 +13,13 @@ interface SubscriptionCardProps {
   subscription: Subscription;
   onPress: () => void;
   onMarkAsPaid?: () => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
 }
 
-export function SubscriptionCard({ subscription, onPress, onMarkAsPaid }: SubscriptionCardProps) {
+export function SubscriptionCard({ subscription, onPress, onMarkAsPaid, onEdit, onDelete }: SubscriptionCardProps) {
   const theme = useTheme();
+  const swipeableRef = useRef<Swipeable>(null);
   const overdue = subscription.payment_type === 'manual' && isOverdue(subscription.next_due_date);
   const remaining = daysUntil(subscription.next_due_date);
   const accentColor = subscription.color ?? theme.colors.primary;
@@ -26,7 +30,49 @@ export function SubscriptionCard({ subscription, onPress, onMarkAsPaid }: Subscr
     ? 'Scade oggi'
     : `Tra ${remaining} ${remaining === 1 ? 'giorno' : 'giorni'} · ${formatShortDate(subscription.next_due_date)}`;
 
-  return (
+  const handleEditPress = () => {
+    swipeableRef.current?.close();
+    onEdit?.();
+  };
+
+  const handleDeletePress = () => {
+    swipeableRef.current?.close();
+    Alert.alert(
+      'Eliminare questo pagamento?',
+      `"${subscription.name}" verrà eliminato definitivamente, insieme al suo storico dei pagamenti. L'azione non può essere annullata.`,
+      [
+        { text: 'Annulla', style: 'cancel' },
+        { text: 'Elimina', style: 'destructive', onPress: () => onDelete?.() },
+      ]
+    );
+  };
+
+  const renderRightActions = () => (
+    <View style={styles.actionsRow}>
+      {onEdit && (
+        <TouchableRipple onPress={handleEditPress} style={[styles.actionButton, { backgroundColor: theme.colors.secondary }]}>
+          <View style={styles.actionContent}>
+            <MaterialCommunityIcons name="pencil-outline" size={20} color={theme.colors.onSecondary} />
+            <Text variant="labelSmall" style={{ color: theme.colors.onSecondary }}>
+              Modifica
+            </Text>
+          </View>
+        </TouchableRipple>
+      )}
+      {onDelete && (
+        <TouchableRipple onPress={handleDeletePress} style={[styles.actionButton, { backgroundColor: theme.colors.error }]}>
+          <View style={styles.actionContent}>
+            <MaterialCommunityIcons name="trash-can-outline" size={20} color={theme.colors.onError} />
+            <Text variant="labelSmall" style={{ color: theme.colors.onError }}>
+              Elimina
+            </Text>
+          </View>
+        </TouchableRipple>
+      )}
+    </View>
+  );
+
+  const card = (
     <TouchableRipple onPress={onPress} borderless style={styles.wrapper}>
       <View
         style={[
@@ -77,6 +123,14 @@ export function SubscriptionCard({ subscription, onPress, onMarkAsPaid }: Subscr
         </View>
       </View>
     </TouchableRipple>
+  );
+
+  if (!onEdit && !onDelete) return card;
+
+  return (
+    <Swipeable ref={swipeableRef} renderRightActions={renderRightActions} overshootRight={false}>
+      {card}
+    </Swipeable>
   );
 }
 
@@ -136,5 +190,20 @@ const styles = StyleSheet.create({
     marginTop: 10,
     color: SUCCESS_COLOR,
     fontWeight: '700',
+  },
+  actionsRow: {
+    flexDirection: 'row',
+    marginBottom: 10,
+  },
+  actionButton: {
+    width: 72,
+    marginLeft: 6,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  actionContent: {
+    alignItems: 'center',
+    gap: 4,
   },
 });

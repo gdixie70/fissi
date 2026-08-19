@@ -1,3 +1,4 @@
+import dayjs from 'dayjs';
 import { PaymentLogEntry, Subscription } from '../types';
 import { isInCycle, isOverdue, PayCycleRange } from './dates';
 
@@ -27,4 +28,48 @@ export function formatCurrency(amount: number, currency = 'EUR'): string {
   } catch {
     return `${amount.toFixed(2)} ${currency}`;
   }
+}
+
+/** Anni distinti presenti nello storico pagamenti, dal più recente. */
+export function yearsWithData(paymentLog: PaymentLogEntry[]): number[] {
+  const years = new Set(paymentLog.map((p) => dayjs(p.due_date).year()));
+  return Array.from(years).sort((a, b) => b - a);
+}
+
+/** Voci dello storico la cui scadenza cade nell'anno indicato. */
+export function paymentsInYear(paymentLog: PaymentLogEntry[], year: number): PaymentLogEntry[] {
+  return paymentLog.filter((p) => dayjs(p.due_date).year() === year);
+}
+
+export interface CategoryTotal {
+  category: string;
+  total: number;
+}
+
+const UNCATEGORIZED_LABEL = 'Senza categoria';
+
+/** Somma per categoria (dal pagamento fisso collegato, "Senza categoria" se assente o
+ * eliminato), ordinata dal totale più alto. */
+export function totalsByCategory(
+  entries: PaymentLogEntry[],
+  subscriptionsById: Map<string, Subscription>
+): CategoryTotal[] {
+  const totals = new Map<string, number>();
+  for (const entry of entries) {
+    const category = subscriptionsById.get(entry.subscription_id)?.category || UNCATEGORIZED_LABEL;
+    totals.set(category, (totals.get(category) ?? 0) + Number(entry.amount));
+  }
+  return Array.from(totals.entries())
+    .map(([category, total]) => ({ category, total }))
+    .sort((a, b) => b.total - a.total);
+}
+
+/** Totale per ciascuno dei 12 mesi dell'anno (indice 0 = gennaio). */
+export function monthlyTotals(entries: PaymentLogEntry[]): number[] {
+  const totals = new Array(12).fill(0);
+  for (const entry of entries) {
+    const month = dayjs(entry.due_date).month();
+    totals[month] += Number(entry.amount);
+  }
+  return totals;
 }

@@ -16,6 +16,10 @@ export const ACCENT_COLORS = [
 /** Verde "successo" unico, usato per lo stato pagato/riuscito ovunque nell'app. */
 export const SUCCESS_COLOR = '#30A46C';
 
+/** Gradiente della card "hero" del ciclo in Dashboard (indaco -> viola), uguale in chiaro/scuro:
+ * è un elemento a colore pieno, non una superficie neutra, quindi non serve una variante per tema. */
+export const HERO_GRADIENT = ['#3E63DD', '#8E4EC6'] as const;
+
 /** Nero o bianco a seconda della luminanza del colore di sfondo, per garantire
  * un'icona sempre leggibile sopra i badge colorati (es. il bianco della palette). */
 export function getContrastColor(hex: string): string {
@@ -32,6 +36,14 @@ export const lightTheme = {
   colors: {
     ...MD3LightTheme.colors,
     primary: '#3E63DD',
+    secondary: '#8E4EC6',
+    onSecondary: '#FFFFFF',
+    secondaryContainer: '#F0E4FA',
+    onSecondaryContainer: '#3B1D5C',
+    tertiary: '#F76B15',
+    onTertiary: '#FFFFFF',
+    tertiaryContainer: '#FFE4D1',
+    onTertiaryContainer: '#7A2E00',
     background: '#F5F6FB',
     surface: '#FFFFFF',
     elevation: {
@@ -46,6 +58,14 @@ export const darkTheme = {
   colors: {
     ...MD3DarkTheme.colors,
     primary: '#8DA4FF',
+    secondary: '#C9A6F0',
+    onSecondary: '#3B1D5C',
+    secondaryContainer: '#4A2E70',
+    onSecondaryContainer: '#F0E4FA',
+    tertiary: '#FFB37A',
+    onTertiary: '#5C2600',
+    tertiaryContainer: '#7A3D0A',
+    onTertiaryContainer: '#FFE4D1',
     background: '#10141F',
     surface: '#161B29',
     elevation: {

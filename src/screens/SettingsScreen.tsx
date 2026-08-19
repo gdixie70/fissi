@@ -1,14 +1,21 @@
 import React, { useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Button, Divider, SegmentedButtons, Text, TextInput, useTheme } from 'react-native-paper';
+import { Button, Chip, Divider, SegmentedButtons, Text, TextInput, useTheme } from 'react-native-paper';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import dayjs from 'dayjs';
 import { useSubscriptions } from '../context/SubscriptionsContext';
+import { RootStackParamList } from '../navigation/types';
+import { setDevPremiumOverride } from '../lib/purchases';
 import { SUCCESS_COLOR } from '../theme';
 
 const LEAD_OPTIONS = ['0', '1', '3', '5', '7'];
 
 export function SettingsScreen() {
   const theme = useTheme();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const {
     reminderLeadDays,
     updateReminderLeadDays,
@@ -18,12 +25,18 @@ export function SettingsScreen() {
     importData,
     subscriptions,
     paymentLog,
+    isPremium,
+    lastBackupAt,
+    restorePurchases,
+    restoreFromAutoBackup,
+    refreshPremiumStatus,
   } = useSubscriptions();
 
   const [paydayInput, setPaydayInput] = useState(String(payday));
   const [paydayError, setPaydayError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [restoringBackup, setRestoringBackup] = useState(false);
   const [message, setMessage] = useState<{ text: string; isError: boolean } | null>(null);
 
   const handlePaydayBlur = () => {
@@ -68,12 +81,61 @@ export function SettingsScreen() {
     });
   };
 
+  const handleRestoreBackup = async () => {
+    setMessage(null);
+    setRestoringBackup(true);
+    const result = await restoreFromAutoBackup();
+    setRestoringBackup(false);
+
+    if (result.error) {
+      setMessage({ text: result.error, isError: true });
+      return;
+    }
+    setMessage({ text: `Backup ripristinato: ${result.imported ?? 0} pagamenti.`, isError: false });
+  };
+
   return (
     <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: theme.colors.background }}>
     <ScrollView style={{ backgroundColor: theme.colors.background }} contentContainerStyle={styles.container}>
       <Text variant="headlineSmall" style={styles.heading}>
         Impostazioni
       </Text>
+
+      {isPremium ? (
+        <>
+          <View style={[styles.premiumCard, { backgroundColor: theme.colors.secondaryContainer }]}>
+            <MaterialCommunityIcons name="star-four-points" size={22} color={theme.colors.onSecondaryContainer} />
+            <Text variant="titleMedium" style={{ color: theme.colors.onSecondaryContainer, flex: 1 }}>
+              Sei Premium
+            </Text>
+            <Chip compact onPress={restorePurchases}>
+              Ripristina
+            </Chip>
+          </View>
+          <Button
+            mode="outlined"
+            icon="chart-donut"
+            onPress={() => navigation.navigate('Recap')}
+            style={styles.button}
+          >
+            Recap annuale
+          </Button>
+        </>
+      ) : (
+        <View style={[styles.premiumCard, { backgroundColor: theme.colors.elevation.level1 }]}>
+          <View style={{ flex: 1 }}>
+            <Text variant="titleMedium">Passa a Premium</Text>
+            <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+              Pagamenti illimitati, backup automatico, recap annuale.
+            </Text>
+          </View>
+          <Button mode="contained" compact onPress={() => navigation.navigate('Paywall')}>
+            Scopri
+          </Button>
+        </View>
+      )}
+
+      <Divider style={styles.divider} />
 
       <Text variant="labelLarge" style={styles.label}>
         Giorno di stipendio
@@ -157,6 +219,64 @@ export function SettingsScreen() {
           {message.text}
         </Text>
       )}
+
+      <Divider style={styles.divider} />
+
+      <Text variant="labelLarge" style={styles.label}>
+        Backup automatico
+      </Text>
+      {isPremium ? (
+        <>
+          <Text variant="bodySmall" style={styles.hint}>
+            {lastBackupAt
+              ? `Ultimo backup: ${dayjs(lastBackupAt).format('DD/MM/YYYY HH:mm')}. `
+              : 'Nessun backup ancora effettuato: verrà creato automaticamente alla prossima modifica. '}
+            Rientra nel backup di sistema del telefono, nessuna configurazione richiesta.
+          </Text>
+          <Button
+            mode="outlined"
+            icon="cloud-download-outline"
+            onPress={handleRestoreBackup}
+            loading={restoringBackup}
+            style={styles.button}
+          >
+            Ripristina da backup automatico
+          </Button>
+        </>
+      ) : (
+        <>
+          <Text variant="bodySmall" style={styles.hint}>
+            Con Premium i tuoi dati vengono salvati automaticamente nel backup di sistema del telefono,
+            senza doverli esportare a mano.
+          </Text>
+          <Button mode="outlined" onPress={() => navigation.navigate('Paywall')} style={styles.button}>
+            Scopri Premium
+          </Button>
+        </>
+      )}
+
+      {__DEV__ && (
+        <>
+          <Divider style={styles.divider} />
+          <Text variant="labelLarge" style={styles.label}>
+            Solo sviluppo
+          </Text>
+          <Text variant="bodySmall" style={styles.hint}>
+            Simula lo stato Premium senza un acquisto reale. Non visibile nella build di produzione.
+          </Text>
+          <SegmentedButtons
+            value={isPremium ? 'on' : 'off'}
+            onValueChange={async (v) => {
+              await setDevPremiumOverride(v === 'on');
+              await refreshPremiumStatus();
+            }}
+            buttons={[
+              { value: 'off', label: 'Premium OFF' },
+              { value: 'on', label: 'Premium ON' },
+            ]}
+          />
+        </>
+      )}
     </ScrollView>
     </SafeAreaView>
   );
@@ -170,6 +290,14 @@ const styles = StyleSheet.create({
   heading: {
     fontWeight: '800',
     marginBottom: 20,
+  },
+  premiumCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 16,
   },
   label: {
     opacity: 0.7,

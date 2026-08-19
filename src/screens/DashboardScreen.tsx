@@ -12,12 +12,32 @@ import { PaidEntryRow } from '../components/PaidEntryRow';
 import { EmptyState } from '../components/EmptyState';
 import { overdueSubscriptions, paymentsInCycle, subscriptionsDueInCycle, sumAmount } from '../utils/selectors';
 import { formatCycleRange, payCycleRange } from '../utils/dates';
+import { FREE_TIER_MAX_ACTIVE } from '../lib/limits';
 
 export function DashboardScreen() {
   const theme = useTheme();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { subscriptions, paymentLog, payday, loading, refresh, markAsPaid } = useSubscriptions();
+  const {
+    subscriptions,
+    paymentLog,
+    payday,
+    isPremium,
+    loading,
+    refresh,
+    markAsPaid,
+    deleteSubscription,
+    deletePaymentLogEntry,
+  } = useSubscriptions();
   const [refreshing, setRefreshing] = useState(false);
+
+  const handleAddPress = () => {
+    const activeCount = subscriptions.filter((s) => s.active).length;
+    if (!isPremium && activeCount >= FREE_TIER_MAX_ACTIVE) {
+      navigation.navigate('Paywall');
+      return;
+    }
+    navigation.navigate('SubscriptionForm', undefined);
+  };
 
   // Non va messo in useMemo con [payday] come unica dipendenza: payCycleRange usa la
   // data odierna, che può cambiare da un render all'altro (es. l'app resta aperta
@@ -35,6 +55,7 @@ export function DashboardScreen() {
 
   const remainingTotal = useMemo(() => sumAmount(dueThisCycle), [dueThisCycle]);
   const paidTotal = useMemo(() => sumAmount(paymentsThisCycle), [paymentsThisCycle]);
+  const isCycleEmpty = dueThisCycle.length === 0 && paidEntriesSorted.length === 0;
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -74,49 +95,62 @@ export function DashboardScreen() {
           </View>
         )}
 
-        <Text variant="titleMedium" style={styles.sectionTitle}>
-          In questo ciclo devi ancora pagare
-        </Text>
-
-        {dueThisCycle.length === 0 ? (
+        {isCycleEmpty ? (
           <EmptyState
-            icon="party-popper"
-            title="Tutto pagato"
-            subtitle="Nessun pagamento in sospeso per questo ciclo."
+            icon="cash-plus"
+            title="Nessun pagamento fisso ancora"
+            subtitle='Tocca "+" per aggiungere il tuo primo abbonamento o pagamento.'
           />
         ) : (
-          dueThisCycle.map((sub) => (
-            <SubscriptionCard
-              key={sub.id}
-              subscription={sub}
-              onPress={() => navigation.navigate('SubscriptionDetail', { subscriptionId: sub.id })}
-              onMarkAsPaid={sub.payment_type === 'manual' ? () => markAsPaid(sub) : undefined}
-            />
-          ))
-        )}
+          <>
+            <Text variant="titleMedium" style={styles.sectionTitle}>
+              In questo ciclo devi ancora pagare
+            </Text>
 
-        <Text variant="titleMedium" style={styles.sectionTitle}>
-          Pagati in questo ciclo
-        </Text>
-
-        {paidEntriesSorted.length === 0 ? (
-          <EmptyState
-            icon="receipt-text-outline"
-            title="Ancora nessun pagamento registrato"
-            subtitle="Qui vedrai quelli già saldati in questo ciclo."
-          />
-        ) : (
-          paidEntriesSorted.map((entry) => {
-            const subscription = subscriptionsById.get(entry.subscription_id);
-            return (
-              <PaidEntryRow
-                key={entry.id}
-                entry={entry}
-                subscription={subscription}
-                onPress={subscription ? () => navigation.navigate('SubscriptionDetail', { subscriptionId: subscription.id }) : undefined}
+            {dueThisCycle.length === 0 ? (
+              <EmptyState
+                icon="party-popper"
+                title="Tutto pagato"
+                subtitle="Nessun pagamento in sospeso per questo ciclo."
               />
-            );
-          })
+            ) : (
+              dueThisCycle.map((sub) => (
+                <SubscriptionCard
+                  key={sub.id}
+                  subscription={sub}
+                  onPress={() => navigation.navigate('SubscriptionDetail', { subscriptionId: sub.id })}
+                  onMarkAsPaid={sub.payment_type === 'manual' ? () => markAsPaid(sub) : undefined}
+                  onEdit={() => navigation.navigate('SubscriptionForm', { subscriptionId: sub.id })}
+                  onDelete={() => deleteSubscription(sub.id)}
+                />
+              ))
+            )}
+
+            <Text variant="titleMedium" style={styles.sectionTitle}>
+              Pagati in questo ciclo
+            </Text>
+
+            {paidEntriesSorted.length === 0 ? (
+              <EmptyState
+                icon="receipt-text-outline"
+                title="Ancora nessun pagamento registrato"
+                subtitle="Qui vedrai quelli già saldati in questo ciclo."
+              />
+            ) : (
+              paidEntriesSorted.map((entry) => {
+                const subscription = subscriptionsById.get(entry.subscription_id);
+                return (
+                  <PaidEntryRow
+                    key={entry.id}
+                    entry={entry}
+                    subscription={subscription}
+                    onPress={subscription ? () => navigation.navigate('SubscriptionDetail', { subscriptionId: subscription.id }) : undefined}
+                    onDelete={() => deletePaymentLogEntry(entry.id)}
+                  />
+                );
+              })
+            )}
+          </>
         )}
       </ScrollView>
 
@@ -124,7 +158,7 @@ export function DashboardScreen() {
         icon="plus"
         style={[styles.fab, { backgroundColor: theme.colors.primary }]}
         color="#fff"
-        onPress={() => navigation.navigate('SubscriptionForm', undefined)}
+        onPress={handleAddPress}
       />
     </SafeAreaView>
   );

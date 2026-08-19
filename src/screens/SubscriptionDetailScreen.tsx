@@ -6,9 +6,10 @@ import { NativeStackNavigationProp, NativeStackScreenProps } from '@react-naviga
 import { useSubscriptions } from '../context/SubscriptionsContext';
 import { RootStackParamList } from '../navigation/types';
 import { BILLING_CYCLE_LABELS } from '../types';
-import { formatItalianDate, formatShortDate, isOverdue } from '../utils/dates';
+import { formatItalianDate, isOverdue } from '../utils/dates';
 import { formatCurrency } from '../utils/selectors';
 import { getCategoryIcon } from '../utils/categoryIcons';
+import { PaidEntryRow } from '../components/PaidEntryRow';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'SubscriptionDetail'>;
 
@@ -18,7 +19,7 @@ export function SubscriptionDetailScreen() {
   const route = useRoute<Props['route']>();
   const { subscriptionId } = route.params;
 
-  const { subscriptions, paymentLog, markAsPaid } = useSubscriptions();
+  const { subscriptions, paymentLog, markAsPaid, deletePaymentLogEntry } = useSubscriptions();
   const subscription = subscriptions.find((s) => s.id === subscriptionId);
 
   const history = useMemo(
@@ -119,13 +120,12 @@ export function SubscriptionDetailScreen() {
         </Text>
       ) : (
         history.map((entry) => (
-          <View key={entry.id} style={[styles.historyRow, { borderBottomColor: theme.colors.outlineVariant }]}>
-            <Text variant="bodyMedium">{formatShortDate(entry.due_date)}</Text>
-            <Text variant="bodyMedium">{formatCurrency(entry.amount, entry.currency)}</Text>
-            <Text variant="bodySmall" style={styles.historyTag}>
-              {entry.paid_automatically ? 'Automatico' : 'Manuale'}
-            </Text>
-          </View>
+          <PaidEntryRow
+            key={entry.id}
+            entry={entry}
+            subscription={subscription}
+            onDelete={() => deletePaymentLogEntry(entry.id)}
+          />
         ))
       )}
     </ScrollView>
@@ -189,16 +189,6 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   emptyHistory: {
-    opacity: 0.6,
-  },
-  historyRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 8,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  historyTag: {
     opacity: 0.6,
   },
 });
