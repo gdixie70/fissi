@@ -161,17 +161,21 @@ invariati.
   risoluzione moduli tipo "Unable to resolve module ./xyz" per file che esistono davvero su
   disco, è quasi sempre cache di Metro non aggiornata — bisogna far riavviare all'utente
   `npx expo start -c` (non lo si è mai risolto restando sulla cache vecchia).
-- **Build EAS development (iOS) completata** con permesso esplicito dell'utente:
-  `eas build --profile development --platform ios` — riusata la distribution
-  certificate/provisioning profile già esistenti (dispositivo iPhone già registrato,
-  UDID `00008101-001015560105001E`), nessuna nuova configurazione richiesta. Serviva
-  reinstallare `expo-dev-client` (era stato disinstallato mesi fa quando si era scelta la
-  strada Expo Go). Link build: vedi cronologia build su
-  `https://expo.dev/accounts/gdixie70/projects/fissi-app/builds`.
+- **Build EAS development (iOS) completata** ma **installazione diretta ad-hoc abbandonata**:
+  fallita ripetutamente con "Impossibile verificare l'integrità" (errore classico di iOS per
+  installazioni ad-hoc dirette, non legato a RevenueCat/al codice). **Non provare più questa
+  strada come primo tentativo** — passare direttamente a TestFlight (vedi sotto), che
+  l'utente ha già usato con successo in questo stesso progetto senza intoppi.
+- **Passato a TestFlight**: `eas build --profile production --platform ios` (build number
+  incrementato automaticamente a 3) + `eas submit --platform ios --latest`. La prima
+  submit non-interattiva ha richiesto di aggiungere `ascAppId: "6802382883"` sotto
+  `submit.production.ios` in `eas.json` (l'App ID di App Store Connect, visibile nell'URL
+  della dashboard `appstoreconnect.apple.com/apps/6802382883/...`) — senza quello chiede
+  modalità interattiva. Submission completata, Apple processa in 5-10 minuti, poi compare
+  l'aggiornamento nell'app TestFlight già installata sul telefono dell'utente.
 - **Test acquisto sandbox**: da fare — serve un tester sandbox su App Store Connect
   (Utenti e accessi → Sandbox → Tester) usato per accedere quando l'app chiede l'Apple ID
-  al momento dell'acquisto, **non** l'Apple ID reale dell'utente. Con la build dev-client
-  installata, si lancia `npx expo start --dev-client` per collegare Metro.
+  al momento dell'acquisto, **non** l'Apple ID reale dell'utente.
 - **⚠️ BLOCCO Android**: l'account **Google Play Console dell'utente è in attesa di
   approvazione** (Google ha segnalato che la verifica può richiedere alcuni giorni) — finché
   non è approvato, l'utente non può pubblicare né creare prodotti reali su Play Console.
