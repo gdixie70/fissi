@@ -161,10 +161,17 @@ invariati.
   risoluzione moduli tipo "Unable to resolve module ./xyz" per file che esistono davvero su
   disco, è quasi sempre cache di Metro non aggiornata — bisogna far riavviare all'utente
   `npx expo start -c` (non lo si è mai risolto restando sulla cache vecchia).
-- **Non ancora fatto**: un acquisto reale in sandbox richiede una build EAS con dev-client
-  (il modulo nativo non gira su Expo Go) — **non lanciarla senza permesso esplicito
-  dell'utente** (vedi Regole di lavoro fisse). Finché non c'è quella build, il flusso di
-  acquisto reale non è testabile end-to-end, solo il codice è pronto.
+- **Build EAS development (iOS) completata** con permesso esplicito dell'utente:
+  `eas build --profile development --platform ios` — riusata la distribution
+  certificate/provisioning profile già esistenti (dispositivo iPhone già registrato,
+  UDID `00008101-001015560105001E`), nessuna nuova configurazione richiesta. Serviva
+  reinstallare `expo-dev-client` (era stato disinstallato mesi fa quando si era scelta la
+  strada Expo Go). Link build: vedi cronologia build su
+  `https://expo.dev/accounts/gdixie70/projects/fissi-app/builds`.
+- **Test acquisto sandbox**: da fare — serve un tester sandbox su App Store Connect
+  (Utenti e accessi → Sandbox → Tester) usato per accedere quando l'app chiede l'Apple ID
+  al momento dell'acquisto, **non** l'Apple ID reale dell'utente. Con la build dev-client
+  installata, si lancia `npx expo start --dev-client` per collegare Metro.
 - **⚠️ BLOCCO Android**: l'account **Google Play Console dell'utente è in attesa di
   approvazione** (Google ha segnalato che la verifica può richiedere alcuni giorni) — finché
   non è approvato, l'utente non può pubblicare né creare prodotti reali su Play Console.
@@ -174,9 +181,7 @@ invariati.
   non serve ripetere la domanda all'utente ogni sessione, controllare prima se è stato
   sbloccato nel frattempo.
 
-**Fase 5-6 non ancora iniziate**, vedi il piano per i dettagli. **Fase 5 richiede una nuova
-build EAS di sviluppo** (RevenueCat è un modulo nativo, non gira su Expo Go): non lanciarla
-senza permesso esplicito (vedi Regole di lavoro fisse sopra).
+**Fase 6 (pubblicazione) non ancora iniziata**, vedi il piano per i dettagli.
 
 ## Repository git — attenzione
 
