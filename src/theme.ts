@@ -20,6 +20,10 @@ export const SUCCESS_COLOR = '#30A46C';
  * è un elemento a colore pieno, non una superficie neutra, quindi non serve una variante per tema. */
 export const HERO_GRADIENT = ['#3E63DD', '#8E4EC6'] as const;
 
+/** Oro/giallo della "freccia circolare" del logo SottOcchio — l'accento riservato ai momenti
+ * Premium, distinto dal viola secondario usato per il resto dell'interfaccia. */
+export const SPARK_COLOR = '#EAB308';
+
 /** Nero o bianco a seconda della luminanza del colore di sfondo, per garantire
  * un'icona sempre leggibile sopra i badge colorati (es. il bianco della palette). */
 export function getContrastColor(hex: string): string {
@@ -40,10 +44,10 @@ export const lightTheme = {
     onSecondary: '#FFFFFF',
     secondaryContainer: '#F0E4FA',
     onSecondaryContainer: '#3B1D5C',
-    tertiary: '#F76B15',
-    onTertiary: '#FFFFFF',
-    tertiaryContainer: '#FFE4D1',
-    onTertiaryContainer: '#7A2E00',
+    tertiary: '#EAB308',
+    onTertiary: '#3A2E00',
+    tertiaryContainer: '#FEF3C6',
+    onTertiaryContainer: '#5C4400',
     background: '#F5F6FB',
     surface: '#FFFFFF',
     elevation: {
@@ -62,10 +66,10 @@ export const darkTheme = {
     onSecondary: '#3B1D5C',
     secondaryContainer: '#4A2E70',
     onSecondaryContainer: '#F0E4FA',
-    tertiary: '#FFB37A',
-    onTertiary: '#5C2600',
-    tertiaryContainer: '#7A3D0A',
-    onTertiaryContainer: '#FFE4D1',
+    tertiary: '#FDE047',
+    onTertiary: '#3A2E00',
+    tertiaryContainer: '#54430A',
+    onTertiaryContainer: '#FEF3C6',
     background: '#10141F',
     surface: '#161B29',
     elevation: {

@@ -103,9 +103,9 @@ export function SettingsScreen() {
 
       {isPremium ? (
         <>
-          <View style={[styles.premiumCard, { backgroundColor: theme.colors.secondaryContainer }]}>
-            <MaterialCommunityIcons name="star-four-points" size={22} color={theme.colors.onSecondaryContainer} />
-            <Text variant="titleMedium" style={{ color: theme.colors.onSecondaryContainer, flex: 1 }}>
+          <View style={[styles.premiumCard, { backgroundColor: theme.colors.tertiaryContainer }]}>
+            <MaterialCommunityIcons name="star-four-points" size={22} color={theme.colors.onTertiaryContainer} />
+            <Text variant="titleMedium" style={{ color: theme.colors.onTertiaryContainer, flex: 1 }}>
               Sei Premium
             </Text>
             <Chip compact onPress={restorePurchases}>

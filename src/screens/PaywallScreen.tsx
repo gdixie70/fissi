@@ -60,8 +60,8 @@ export function PaywallScreen() {
 
   return (
     <ScrollView style={{ backgroundColor: theme.colors.background }} contentContainerStyle={styles.content}>
-      <View style={[styles.iconCircle, { backgroundColor: theme.colors.secondaryContainer }]}>
-        <MaterialCommunityIcons name="star-four-points" size={32} color={theme.colors.onSecondaryContainer} />
+      <View style={[styles.iconCircle, { backgroundColor: theme.colors.tertiaryContainer }]}>
+        <MaterialCommunityIcons name="star-four-points" size={32} color={theme.colors.onTertiaryContainer} />
       </View>
       <Text variant="headlineSmall" style={styles.heading}>
         FISSI Premium
